@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import requests
 import logging
 
-# ✅ Proxy Configuration Fix
+# ✅ Proxy Configuration
 PROXY_URL = "http://189.240.60.172:9090"
 PROXY_CONFIG = {"http": PROXY_URL, "https": PROXY_URL}
 
@@ -45,7 +45,7 @@ def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol
         'api_secret': api_secret
     }
     config['Proxy'] = {
-        'proxy_url': PROXY_URL  # ✅ Fixed Proxy Variable
+        'proxy_url': PROXY_URL
     }
     with open("config.ini", "w") as configfile:
         config.write(configfile)
@@ -57,7 +57,7 @@ def get_public_ip():
         response = requests.get(
             "https://checkip.amazonaws.com",
             proxies=PROXY_CONFIG,
-            timeout=15  # ✅ Increased Timeout
+            timeout=15
         )
         if response.status_code == 200:
             ip = response.text.strip()
@@ -74,7 +74,7 @@ def check_bybit_connection():
             "https://api-testnet.bybit.com/v5/market/tickers",
             params={"category": "linear", "symbol": "BTCUSDT"},
             proxies=PROXY_CONFIG,
-            timeout=15  # ✅ Increased Timeout
+            timeout=15
         )
         status_code = response.status_code
         if status_code == 200:
@@ -184,4 +184,4 @@ st.text_area("Logs", "\n".join(st.session_state.log_lines[-30:]), height=300)
 
 # --- 🔄 Manual Refresh Logs ---
 if st.button("🔄 Refresh Logs"):
-    st.experimental_rerun()  # ✅ Use experimental_rerun for Streamlit Cloud Compatibility
+    st.rerun()  # ✅ Replaced experimental_rerun with standard st.rerun()
