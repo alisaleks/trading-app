@@ -118,10 +118,25 @@ def execute_trade(action, total_trade_value, price):
         log_trade(action, qty, price, success=False, error=str(e))
 
 def get_current_price():
-    ticker = retry_api_call(session.get_tickers, category="linear", symbol=SYMBOL)
-    if ticker and 'result' in ticker and 'list' in ticker['result'] and len(ticker['result']['list']) > 0:
-        return float(ticker['result']['list'][0]['lastPrice'])
-    logging.error("Failed to fetch current price. Falling back to BASE_PRICE.")
+    try:
+        response = retry_api_call(session.get_tickers, category="linear", symbol=SYMBOL)
+        if response:
+            headers = response.get("headers", {})
+            remaining_limit = headers.get("X-Bapi-Limit-Status", "unknown")
+
+            if remaining_limit != "unknown":
+                logging.info(f"Remaining API limit: {remaining_limit}")
+
+                # Throttle if remaining requests are low
+                if int(remaining_limit) < 10:
+                    logging.warning("Approaching rate limit. Backing off for 10 seconds.")
+                    time.sleep(10)
+
+            ticker_list = response.get("result", {}).get("list", [])
+            if ticker_list:
+                return float(ticker_list[0]["lastPrice"])
+    except Exception as e:
+        logging.error(f"Error fetching current price: {e}")
     return BASE_PRICE
 
 def trading_logic():
