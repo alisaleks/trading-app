@@ -69,8 +69,8 @@ def check_bybit_connection():
         response = requests.get(
             "https://api-testnet.bybit.com/v5/market/tickers",
             params={"category": "linear", "symbol": "BTCUSDT"},
-            proxies=PROXY_CONFIG,
-            timeout=5
+            proxies={"http": PROXY_URL, "https": PROXY_URL},
+            timeout=15  # ✅ Increased Timeout
         )
         status_code = response.status_code
         if status_code == 200:
@@ -86,7 +86,6 @@ def check_bybit_connection():
     except Exception as e:
         st.error(f"🚨 Bybit Testnet connection via proxy failed: {e}")
         return False
-
 # ✅ Show Public IP & Bybit Status Before Running Bot
 st.title("🚀 Trading Bot Dashboard")
 public_ip = get_public_ip()
