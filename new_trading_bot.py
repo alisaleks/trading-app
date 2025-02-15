@@ -11,6 +11,7 @@ import streamlit as st  # ✅ Add this line for Streamlit integration
 
 # ✅ Unbuffered Output for Streamlit (Python 3.7+)
 sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
+PROXY_URL = "http://27.70.238.241:10007"
 
 # ✅ Initialize logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -47,7 +48,9 @@ STEP_INCREMENTS = [
 session = HTTP(
     testnet=TEST_MODE,
     api_key=api_key,
-    api_secret=api_secret
+    api_secret=api_secret,
+    request_timeout=10,
+    proxies={"http": PROXY_URL, "https": PROXY_URL}
 )
 
 def log_trade(action, qty, price, success=True, error=None):
