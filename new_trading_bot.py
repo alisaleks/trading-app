@@ -11,7 +11,7 @@ from pybit.unified_trading import HTTP
 import streamlit as st  # ✅ Streamlit integration
 
 # ✅ Fix Proxy URL
-PROXY_URL = "http://189.240.60.172:9090"
+PROXY_URL = "http://94.130.183.32:8080"  # Example: Germany Proxy
 
 # ✅ Initialize logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
