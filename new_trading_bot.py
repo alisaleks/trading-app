@@ -5,15 +5,19 @@ import math
 import logging
 import json
 import datetime
+import requests  # ✅ Added missing import
 from configparser import ConfigParser
 from pybit.unified_trading import HTTP
-import streamlit as st  # ✅ Add this line for Streamlit integration
+import streamlit as st  # ✅ Streamlit integration
+
+# ✅ Fix Proxy URL
+PROXY_URL = "http://189.240.60.172:9090"
+
+# ✅ Initialize logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # ✅ Unbuffered Output for Streamlit (Python 3.7+)
 sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
-PROXY_URL = "http://189.240.60.172:9090"
-# ✅ Initialize logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # ✅ Load API Credentials (Priority: Environment → Streamlit Secrets)
 def get_api_credentials():
@@ -43,16 +47,21 @@ STEP_INCREMENTS = [
     2, 2, 2, 2
 ]
 
-# Bybit session
+# ✅ Create Bybit session (WITHOUT `request_timeout`, Manually configured in requests)
 session = HTTP(
     testnet=TEST_MODE,
     api_key=api_key,
-    api_secret=api_secret,
-    request_timeout=10,
-    proxies={"http": PROXY_URL, "https": PROXY_URL}
+    api_secret=api_secret
 )
+
+# ✅ Manually configure `requests.Session()` with Proxy and Timeout
 session._session = requests.Session()
-session._session.timeout = 10  # 10 seconds timeout
+session._session.proxies.update({
+    "http": PROXY_URL,
+    "https": PROXY_URL
+})
+session._session.timeout = 10  # Set timeout to 10 seconds
+
 def log_trade(action, qty, price, success=True, error=None):
     """Log structured trade details for Streamlit."""
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -69,16 +78,18 @@ def log_trade(action, qty, price, success=True, error=None):
     logging.info(f"{action.capitalize()} Order: qty={qty}, price={price}, status={'SUCCESS' if success else 'FAILED'}")
 
 def retry_api_call(func, retries=3, *args, **kwargs):
+    """Retry API call with exponential backoff."""
     for attempt in range(retries):
         try:
             return func(*args, **kwargs)
         except Exception as e:
             logging.error(f"API call failed on attempt {attempt + 1}/{retries}: {e}")
-            time.sleep(2 ** attempt)
+            time.sleep(2 ** attempt)  # Exponential backoff
     logging.error("Max retries reached. API call failed.")
     return None
 
 def get_symbol_info(symbol):
+    """Retrieve symbol information from Bybit API."""
     response = retry_api_call(session.get_instruments_info, category="linear")
     if response and 'result' in response:
         for item in response['result']['list']:
@@ -94,10 +105,12 @@ def get_symbol_info(symbol):
     return None
 
 def adjust_qty(qty, step_size, precision):
+    """Adjust quantity to match exchange precision."""
     adjusted_qty = math.floor(qty / step_size) * step_size
     return round(adjusted_qty, precision)
 
 def execute_trade(action, total_trade_value, price):
+    """Place a trade order on Bybit."""
     symbol_info = get_symbol_info(SYMBOL)
     if not symbol_info:
         log_trade(action, 0, price, success=False, error="Failed to retrieve symbol info")
@@ -131,6 +144,7 @@ def execute_trade(action, total_trade_value, price):
         log_trade(action, qty, price, success=False, error=str(e))
 
 def get_current_price():
+    """Retrieve the current market price."""
     try:
         response = retry_api_call(session.get_tickers, category="linear", symbol=SYMBOL)
         if response:
@@ -139,8 +153,6 @@ def get_current_price():
 
             if remaining_limit != "unknown":
                 logging.info(f"Remaining API limit: {remaining_limit}")
-
-                # Throttle if remaining requests are low
                 if int(remaining_limit) < 10:
                     logging.warning("Approaching rate limit. Backing off for 10 seconds.")
                     time.sleep(10)
@@ -153,6 +165,7 @@ def get_current_price():
     return BASE_PRICE
 
 def trading_logic():
+    """Main trading logic loop."""
     trade_amounts = [BASE_PRICE * multiplier for multiplier in STEP_INCREMENTS]
     step_index = 0
     last_trade_price = None
