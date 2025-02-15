@@ -17,11 +17,11 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # ✅ Load API Credentials (Priority: Environment → Streamlit Secrets)
 def get_api_credentials():
-    api_key = os.getenv("api_key") or st.secrets.get("API", {}).get("api_key", "")
-    api_secret = os.getenv("api_secret") or st.secrets.get("API", {}).get("api_secret", "")
+    api_key = st.secrets.get("api", {}).get("api_key", "")
+    api_secret = st.secrets.get("api", {}).get("api_secret", "")
     
     if not api_key or not api_secret:
-        raise ValueError("API credentials not found in environment variables or Streamlit secrets.")
+        raise ValueError("API credentials not found in Streamlit secrets.")
     
     return api_key, api_secret
 
