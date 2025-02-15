@@ -46,8 +46,8 @@ STEP_INCREMENTS = [
 # Bybit session
 session = HTTP(
     testnet=TEST_MODE,
-    api_key=API_KEY,
-    api_secret=API_SECRET
+    api_key=api_key,
+    api_secret=api_secret
 )
 
 def log_trade(action, qty, price, success=True, error=None):
