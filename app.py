@@ -9,13 +9,12 @@ from configparser import ConfigParser
 from dotenv import load_dotenv
 import requests
 import logging
-PROXY_URL = "http://27.70.238.241:10007"
+PROXY_URL = "http://31.40.248.2:8080"
 # ✅ Load local environment variables (.env)
 load_dotenv()
 
 # ✅ Proxy Configuration (Provided Proxy)
-PROXY = "http://27.70.238.241:10007"
-PROXY_CONFIG = {"http": PROXY, "https": PROXY}
+PROXY_CONFIG = {"http": PROXY_URL, "https": PROXY_URL}
 
 # ✅ Get API Credentials from Secrets or .env
 def get_api_credentials():
@@ -42,7 +41,7 @@ def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol
         'api_secret': api_secret
     }
     config['Proxy'] = {
-        'proxy_url': PROXY
+        'proxy_url': PROXY_URL  # ✅ Use Correct Variable Name
     }
     with open("config.ini", "w") as configfile:
         config.write(configfile)
