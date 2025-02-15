@@ -9,14 +9,25 @@ import queue
 import time
 from streamlit_autorefresh import st_autorefresh
 
-# Load environment variables
+# Load environment variables for local development
 load_dotenv()
 
+def get_api_credentials():
+    # Try to get from environment first (for local development)
+    api_key = os.getenv("API_KEY")
+    api_secret = os.getenv("API_SECRET")
+    # If not found, try Streamlit secrets (for cloud deployment)
+    if not api_key or not api_secret:
+        api_key = st.secrets.get("API", {}).get("api_key", "")
+        api_secret = st.secrets.get("API", {}).get("api_secret", "")
+    return api_key, api_secret
+
 def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol):
+    api_key, api_secret = get_api_credentials()
     config = ConfigParser()
     config['API'] = {
-        'api_key': '[Stored securely in .env]',
-        'api_secret': '[Stored securely in .env]'
+        'api_key': api_key,
+        'api_secret': api_secret
     }
     config['Settings'] = {
         'test_mode': str(test_mode),
