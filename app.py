@@ -1,18 +1,18 @@
 import streamlit as st
-from configparser import ConfigParser
-from dotenv import load_dotenv
-import os
+import time
 import subprocess
 import sys
 import threading
 import queue
-import time
+import os
+from configparser import ConfigParser
+from dotenv import load_dotenv
 
-# Load environment variables for local development
+# Load local environment variables (for local development)
 load_dotenv()
 
 def get_api_credentials():
-    # Try local environment variables first; if not found, use Streamlit secrets.
+    # First try local env vars; if not found, use Streamlit secrets (set via dashboard)
     api_key = os.getenv("API_KEY")
     api_secret = os.getenv("API_SECRET")
     if not api_key or not api_secret:
@@ -38,21 +38,17 @@ def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol
     with open("config.ini", "w") as configfile:
         config.write(configfile)
 
-# Initialize session state variables if not already set
+# Initialize persistent session state variables if not already set
 if "bot_process" not in st.session_state:
     st.session_state.bot_process = None
 if "log_queue" not in st.session_state:
     st.session_state.log_queue = queue.Queue()
 if "log_lines" not in st.session_state:
     st.session_state.log_lines = []
-if "last_20_logs" not in st.session_state:
-    st.session_state.last_20_logs = ""
-if "log_updater_started" not in st.session_state:
-    st.session_state.log_updater_started = False
 
 st.title("Trading Bot Configuration")
 
-# UI Inputs
+# --- User Inputs ---
 test_mode = st.checkbox("Test Mode")
 base_price = st.number_input("Base Price", value=1500.0)
 manual_percentage = st.number_input("Manual Percentage (%)", value=2.0)
@@ -60,39 +56,34 @@ interval = st.number_input("Interval (seconds)", min_value=1, value=60)
 mode = st.selectbox("Mode", ["long", "short"])
 symbol = st.text_input("Symbol", value="BTCUSDT")
 
-# Button to start the trading bot
+# --- Start Bot Button ---
 if st.button("Run Trading Bot"):
     save_config(test_mode, base_price, manual_percentage, interval, mode, symbol)
     st.success("Configuration saved. Running `new_trading_bot.py`...")
-    
     # Terminate any existing bot process
     if st.session_state.bot_process is not None:
         st.session_state.bot_process.terminate()
         st.session_state.bot_process = None
-    
-    # Start the trading bot process (combine stderr into stdout)
+    # Start the trading bot process (stderr is merged into stdout)
     st.session_state.bot_process = subprocess.Popen(
         [sys.executable, "new_trading_bot.py"],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
-        bufsize=1,
-        universal_newlines=True
+        bufsize=1
     )
-    
-    # Background thread to read logs from the process and put them in a queue
+    # Background thread to read log lines and add them to log_queue
     def read_logs(process, log_queue):
         for line in iter(process.stdout.readline, ''):
             log_queue.put(line)
         process.stdout.close()
-    
-    read_thread = threading.Thread(
+    thread = threading.Thread(
         target=read_logs, args=(st.session_state.bot_process, st.session_state.log_queue)
     )
-    read_thread.daemon = True
-    read_thread.start()
+    thread.daemon = True
+    thread.start()
 
-# Button to stop the trading bot
+# --- Stop Bot Button ---
 if st.button("Stop Trading Bot"):
     if st.session_state.bot_process:
         st.session_state.bot_process.terminate()
@@ -103,25 +94,15 @@ if st.button("Stop Trading Bot"):
 
 st.subheader("Trading Bot Live Logs")
 
-# Function to update the last 20 log lines in session state
-def update_logs():
-    while True:
-        # Exit if the bot process is no longer running
-        if st.session_state.bot_process is None:
-            break
-        # Drain the log queue into log_lines
-        while not st.session_state.log_queue.empty():
-            st.session_state.log_lines.append(st.session_state.log_queue.get())
-        # Keep only the last 20 lines
-        st.session_state.last_20_logs = "".join(st.session_state.log_lines[-20:])
-        time.sleep(2)
+# Drain any new logs from the log queue into log_lines
+while not st.session_state.log_queue.empty():
+    st.session_state.log_lines.append(st.session_state.log_queue.get())
 
-# Start a background thread to update the log display if not already started
-if not st.session_state.log_updater_started and st.session_state.bot_process is not None:
-    st.session_state.log_updater_started = True
-    log_update_thread = threading.Thread(target=update_logs)
-    log_update_thread.daemon = True
-    log_update_thread.start()
+# Show only the last 20 log lines
+last_20_logs = "".join(st.session_state.log_lines[-20:])
+st.text(last_20_logs)
 
-# Display the last 20 log lines
-st.text(st.session_state.last_20_logs)
+# --- Manual Refresh ---
+# Clicking this button causes the script to re-run, updating the log display.
+if st.button("Refresh Logs"):
+    st.write("Logs refreshed!")
