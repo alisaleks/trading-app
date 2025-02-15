@@ -52,16 +52,17 @@ def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol
 def get_public_ip():
     try:
         response = requests.get(
-            "https://api.ipify.org?format=json",
-            proxies=PROXY_CONFIG,
+            "https://api-testnet.bybit.com/v5/market/time",
+            proxies={"http": PROXY_URL, "https": PROXY_URL},
             timeout=5
         )
         if response.status_code == 200:
-            ip = response.json().get("ip")
-            st.info(f"🔍 Your Public IP via Proxy: `{ip}`")
+            # Use Bybit headers to infer IP
+            ip = response.headers.get("X-Forwarded-For", "IP not provided by Bybit")
+            st.info(f"🔍 Your Public IP via Bybit Proxy: `{ip}`")
             return ip
     except Exception as e:
-        st.error(f"🚨 Failed to get public IP via proxy: {e}")
+        st.error(f"🚨 Failed to get public IP via Bybit proxy: {e}")
     return None
 
 # ✅ Check Bybit Testnet API status (via Proxy)
