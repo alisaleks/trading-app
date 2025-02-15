@@ -4,25 +4,22 @@
 
 import streamlit as st
 from configparser import ConfigParser
-from dotenv import load_dotenv
 import os
-
-# Load environment variables
-load_dotenv()
-API_KEY = os.getenv('API_KEY')
-API_SECRET = os.getenv('API_SECRET')
 
 # Function to save configuration to config.ini
 def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol):
     config = ConfigParser()
-    config['API'] = {'api_key': API_KEY, 'api_secret': API_SECRET}
+    config['API'] = {
+        'api_key': str(API_KEY),
+        'api_secret': str(API_SECRET)
+    }
     config['Settings'] = {
         'test_mode': str(test_mode),
         'base_price': str(base_price),
         'manual_percentage': str(manual_percentage),
         'interval': str(interval),
-        'mode': mode,
-        'symbol': symbol
+        'mode': str(mode),
+        'symbol': str(symbol)
     }
     with open("config.ini", "w") as configfile:
         config.write(configfile)
