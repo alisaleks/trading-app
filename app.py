@@ -19,10 +19,6 @@ def get_api_credentials():
 def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol):
     api_key, api_secret = get_api_credentials()
     config = ConfigParser()
-    config['API'] = {
-        'api_key': api_key,
-        'api_secret': api_secret
-    }
     config['Settings'] = {
         'test_mode': str(test_mode),
         'base_price': str(base_price),
