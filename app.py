@@ -4,13 +4,14 @@ from dotenv import load_dotenv
 import os
 import subprocess
 import sys
-import json
+import threading
+import queue
 import time
+from streamlit_autorefresh import st_autorefresh
 
 # Load environment variables
 load_dotenv()
 
-# Save configuration to config.ini
 def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol):
     config = ConfigParser()
     config['API'] = {
@@ -28,6 +29,14 @@ def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol
     with open("config.ini", "w") as configfile:
         config.write(configfile)
 
+# Initialize session state variables
+if "bot_process" not in st.session_state:
+    st.session_state.bot_process = None
+if "log_queue" not in st.session_state:
+    st.session_state.log_queue = queue.Queue()
+if "log_lines" not in st.session_state:
+    st.session_state.log_lines = []
+
 # Streamlit UI
 st.title("Trading Bot Configuration")
 
@@ -39,29 +48,35 @@ interval = st.number_input("Interval (seconds)", min_value=1, value=60)
 mode = st.selectbox("Mode", ["long", "short"])
 symbol = st.text_input("Symbol", value="BTCUSDT")
 
-# Store bot process globally
-if "bot_process" not in st.session_state:
-    st.session_state.bot_process = None
-
 # Button to Start Trading Bot
 if st.button("Run Trading Bot"):
     save_config(test_mode, base_price, manual_percentage, interval, mode, symbol)
     st.success("Configuration saved. Running `new_trading_bot.py`...")
-
+    
     # Terminate any existing bot process
     if st.session_state.bot_process is not None:
         st.session_state.bot_process.terminate()
         st.session_state.bot_process = None
-
-    # Run trading bot in the background (non-blocking)
+    
+    # Start the trading bot process with stderr combined into stdout
     st.session_state.bot_process = subprocess.Popen(
         [sys.executable, "new_trading_bot.py"],
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         text=True,
-        bufsize=1,  # Line buffering
+        bufsize=1,
         universal_newlines=True
     )
+    
+    # Start a background thread to read logs from the process
+    def read_logs(process, log_queue):
+        for line in iter(process.stdout.readline, ''):
+            log_queue.put(line)
+        process.stdout.close()
+    
+    thread = threading.Thread(target=read_logs, args=(st.session_state.bot_process, st.session_state.log_queue))
+    thread.daemon = True
+    thread.start()
 
 # Button to Stop Trading Bot
 if st.button("Stop Trading Bot"):
@@ -72,15 +87,15 @@ if st.button("Stop Trading Bot"):
     else:
         st.warning("No active trading bot to stop.")
 
-# Live Log Display
 st.subheader("Trading Bot Live Logs")
 
-# Stream logs live
-log_area = st.empty()
+# Auto-refresh the page every 2 seconds so new logs are shown
+st_autorefresh(interval=2000, key="log_autorefresh")
 
-if st.session_state.bot_process:
-    for line in iter(st.session_state.bot_process.stdout.readline, ''):
-        log_area.text(line)
-        time.sleep(0.1)  # Smooth streaming
-else:
-    st.info("No active trading bot. Click 'Run Trading Bot' to start.")
+# Poll the log queue for new log lines
+while not st.session_state.log_queue.empty():
+    new_line = st.session_state.log_queue.get()
+    st.session_state.log_lines.append(new_line)
+
+# Display the accumulated logs
+st.text("".join(st.session_state.log_lines))
