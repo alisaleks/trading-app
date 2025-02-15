@@ -1,11 +1,21 @@
+# Installation Instructions:
+# Run these commands to install required libraries:
+# pip install streamlit configparser python-dotenv
+
 import streamlit as st
 from configparser import ConfigParser
-import subprocess
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()
+API_KEY = os.getenv('API_KEY')
+API_SECRET = os.getenv('API_SECRET')
 
 # Function to save configuration to config.ini
-def save_config(api_key, api_secret, test_mode, base_price, manual_percentage, interval, mode, symbol):
+def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol):
     config = ConfigParser()
-    config['API'] = {'api_key': api_key, 'api_secret': api_secret}
+    config['API'] = {'api_key': API_KEY, 'api_secret': API_SECRET}
     config['Settings'] = {
         'test_mode': str(test_mode),
         'base_price': str(base_price),
@@ -20,8 +30,6 @@ def save_config(api_key, api_secret, test_mode, base_price, manual_percentage, i
 # Streamlit UI for local testing
 st.title("Trading Bot Configuration (Localhost)")
 
-api_key = st.text_input("API Key", type="password")
-api_secret = st.text_input("API Secret", type="password")
 test_mode = st.checkbox("Test Mode")
 base_price = st.number_input("Base Price", value=1500.0)
 manual_percentage = st.number_input("Manual Percentage (%)", value=2.0)
@@ -30,6 +38,6 @@ mode = st.selectbox("Mode", ["long", "short"])
 symbol = st.text_input("Symbol", value="BTCUSDT")
 
 if st.button("Run Bot Locally"):
-    save_config(api_key, api_secret, test_mode, base_price, manual_percentage, interval, mode, symbol)
+    save_config(test_mode, base_price, manual_percentage, interval, mode, symbol)
     st.success("Configuration saved. Run the bot locally using `python trading_bot.py`.")
     st.write("Use `streamlit run app.py` to test the Streamlit app on localhost.")
