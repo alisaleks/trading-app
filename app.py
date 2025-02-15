@@ -5,12 +5,13 @@ import os
 import subprocess
 import sys
 import json
+import time
 
 # Load environment variables
 load_dotenv()
 
+# Save configuration to config.ini
 def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol):
-    """Save configuration settings to config.ini"""
     config = ConfigParser()
     config['API'] = {
         'api_key': '[Stored securely in .env]',
@@ -38,47 +39,48 @@ interval = st.number_input("Interval (seconds)", min_value=1, value=60)
 mode = st.selectbox("Mode", ["long", "short"])
 symbol = st.text_input("Symbol", value="BTCUSDT")
 
+# Store bot process globally
+if "bot_process" not in st.session_state:
+    st.session_state.bot_process = None
+
 # Button to Start Trading Bot
 if st.button("Run Trading Bot"):
     save_config(test_mode, base_price, manual_percentage, interval, mode, symbol)
     st.success("Configuration saved. Running `new_trading_bot.py`...")
 
-    # Run the trading bot and capture output
-    result = subprocess.run(
+    # Terminate any existing bot process
+    if st.session_state.bot_process is not None:
+        st.session_state.bot_process.terminate()
+        st.session_state.bot_process = None
+
+    # Run trading bot in the background (non-blocking)
+    st.session_state.bot_process = subprocess.Popen(
         [sys.executable, "new_trading_bot.py"],
-        capture_output=True,
-        text=True
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,  # Line buffering
+        universal_newlines=True
     )
 
-    # Parse JSON-style log output from trading bot
-    logs = []
-    for line in result.stdout.splitlines():
-        try:
-            log_entry = json.loads(line)
-            logs.append(log_entry)
-        except json.JSONDecodeError:
-            logs.append({"timestamp": "-", "message": line})
+# Button to Stop Trading Bot
+if st.button("Stop Trading Bot"):
+    if st.session_state.bot_process:
+        st.session_state.bot_process.terminate()
+        st.session_state.bot_process = None
+        st.success("Trading bot stopped.")
+    else:
+        st.warning("No active trading bot to stop.")
 
-    # Display results in a structured table
-    if logs:
-        st.subheader("Trading Bot Results")
-        log_df = [
-            {
-                "Timestamp": log.get("timestamp", "-"),
-                "Action": log.get("action", "-"),
-                "Quantity": log.get("quantity", "-"),
-                "Price": log.get("price", "-"),
-                "Status": log.get("status", "-"),
-                "Error": log.get("error", "-")
-            }
-            for log in logs
-        ]
-        st.dataframe(log_df, use_container_width=True)
+# Live Log Display
+st.subheader("Trading Bot Live Logs")
 
-    # Display raw output (if needed)
-    st.subheader("Raw Trading Bot Logs")
-    st.text_area("Trading Bot Output", result.stdout)
+# Stream logs live
+log_area = st.empty()
 
-    # Show errors if any
-    if result.stderr:
-        st.error(f"Error: {result.stderr}")
+if st.session_state.bot_process:
+    for line in iter(st.session_state.bot_process.stdout.readline, ''):
+        log_area.text(line)
+        time.sleep(0.1)  # Smooth streaming
+else:
+    st.info("No active trading bot. Click 'Run Trading Bot' to start.")
