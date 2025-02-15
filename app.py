@@ -67,7 +67,7 @@ if st.button("Run Trading Bot"):
         st.session_state.bot_process.terminate()
         st.session_state.bot_process = None
     
-    # Start the trading bot process (combining stderr into stdout)
+    # Start the trading bot process (combine stderr into stdout)
     st.session_state.bot_process = subprocess.Popen(
         [sys.executable, "new_trading_bot.py"],
         stdout=subprocess.PIPE,
@@ -105,7 +105,10 @@ while not st.session_state.log_queue.empty():
 
 st.text("".join(st.session_state.log_lines))
 
-# If a bot is running, wait 2 seconds then re-run the app to update logs
+# If a bot is running, wait 2 seconds then rerun the app to update logs
 if st.session_state.bot_process is not None:
     time.sleep(2)
-    st.experimental_rerun()
+    try:
+        st.experimental_rerun()
+    except AttributeError:
+        st.warning("st.experimental_rerun is not available. Please upgrade your Streamlit version (e.g., via requirements.txt).")
