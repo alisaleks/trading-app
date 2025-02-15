@@ -9,15 +9,18 @@ from configparser import ConfigParser
 from dotenv import load_dotenv
 import requests
 import logging
-import json
 
-# 🛡 Load local environment variables (for local development)
+# ✅ Load local environment variables (.env)
 load_dotenv()
 
-# ✅ Get API Credentials (from Streamlit secrets or .env)
+# ✅ Proxy Configuration (Provided Proxy)
+PROXY = "http://27.70.238.241:10007"
+PROXY_CONFIG = {"http": PROXY, "https": PROXY}
+
+# ✅ Get API Credentials from Secrets or .env
 def get_api_credentials():
-    api_key = st.secrets.get("api", {}).get("api_key", "")
-    api_secret = st.secrets.get("api", {}).get("api_secret", "")
+    api_key = st.secrets.get("api", {}).get("api_key", os.getenv("API_KEY", ""))
+    api_secret = st.secrets.get("api", {}).get("api_secret", os.getenv("API_SECRET", ""))
     if not api_key or not api_secret:
         st.error("🚨 API credentials not found. Add them to Streamlit Secrets.")
     return api_key, api_secret
@@ -38,6 +41,9 @@ def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol
         'api_key': api_key,
         'api_secret': api_secret
     }
+    config['Proxy'] = {
+        'proxy_url': PROXY
+    }
     with open("config.ini", "w") as configfile:
         config.write(configfile)
     st.success("✅ Configuration saved to `config.ini`.")
@@ -45,39 +51,45 @@ def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol
 # ✅ Get Public IP to diagnose region blocks
 def get_public_ip():
     try:
-        response = requests.get("https://api.ipify.org?format=json", timeout=5)
+        response = requests.get(
+            "https://api.ipify.org?format=json",
+            proxies=PROXY_CONFIG,
+            timeout=5
+        )
         if response.status_code == 200:
             ip = response.json().get("ip")
-            st.info(f"🔍 Public IP for Streamlit Server: `{ip}`")
+            st.info(f"🔍 Your Public IP via Proxy: `{ip}`")
             return ip
     except Exception as e:
-        st.error(f"Failed to get public IP: {e}")
+        st.error(f"🚨 Failed to get public IP via proxy: {e}")
     return None
 
-# ✅ Check Bybit Testnet API status (useful for diagnosing rate limits or region blocks)
+# ✅ Check Bybit Testnet API status (via Proxy)
 def check_bybit_connection():
-    url = "https://api-testnet.bybit.com/v5/market/tickers"
-    params = {"category": "linear", "symbol": "BTCUSDT"}
     try:
-        response = requests.get(url, params=params, timeout=5)
+        response = requests.get(
+            "https://api-testnet.bybit.com/v5/market/tickers",
+            params={"category": "linear", "symbol": "BTCUSDT"},
+            proxies=PROXY_CONFIG,
+            timeout=5
+        )
         status_code = response.status_code
-        response_text = response.text
-
         if status_code == 200:
-            st.success("✅ Bybit Testnet is accessible.")
+            st.success("✅ Bybit Testnet is accessible via Proxy.")
             return True
         elif status_code == 403:
-            st.error("🚫 Bybit blocked your IP (Region Block or Missing API Permissions).")
+            st.error("🚫 Bybit blocked your Proxy IP. Try another Proxy.")
         elif status_code == 429:
-            st.error("🚨 Bybit Rate Limit hit. Try again later or use backoff logic.")
+            st.error("🚨 Bybit Rate Limit hit. Try again later.")
         else:
-            st.error(f"🚫 Bybit Testnet Error: {status_code} - {response_text}")
+            st.error(f"🚫 Bybit Testnet Error: {status_code}")
         return False
     except Exception as e:
-        st.error(f"🚨 Bybit Testnet connection failed: {e}")
+        st.error(f"🚨 Bybit Testnet connection via proxy failed: {e}")
         return False
 
-# ✅ Run Public IP and API Status Check Before Running the Bot
+# ✅ Show Public IP & Bybit Status Before Running Bot
+st.title("🚀 Trading Bot Dashboard")
 public_ip = get_public_ip()
 bybit_status = check_bybit_connection()
 
@@ -90,9 +102,6 @@ if "log_lines" not in st.session_state:
     st.session_state.log_lines = []
 
 # 📊 Streamlit Interface
-st.title("🚀 Trading Bot Dashboard")
-
-# --- 🛠 User Inputs ---
 with st.sidebar:
     st.header("⚙️ Bot Configuration")
     test_mode = st.checkbox("Test Mode (Bybit Testnet)", value=True)
@@ -102,7 +111,7 @@ with st.sidebar:
     mode = st.selectbox("Mode", ["long", "short"])
     symbol = st.text_input("Symbol", value="BTCUSDT")
 
-# --- 💾 Save Configuration Button ---
+# 💾 Save Configuration Button
 if st.button("💾 Save Configuration"):
     save_config(test_mode, base_price, manual_percentage, interval, mode, symbol)
 
@@ -169,9 +178,4 @@ st.text_area("Logs", "\n".join(st.session_state.log_lines[-30:]), height=300)
 
 # --- 🔄 Manual Refresh Logs ---
 if st.button("🔄 Refresh Logs"):
-    st.experimental_rerun()
-
-# ✅ Automatic Log Refresh every 3 seconds
-st.experimental_set_query_params(refresh=True)
-time.sleep(3)
-st.experimental_rerun()
+    st.rerun()
