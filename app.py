@@ -7,7 +7,8 @@ import queue
 import os
 from configparser import ConfigParser
 from dotenv import load_dotenv
-
+import requests
+import logging
 # Load local environment variables (for local development)
 load_dotenv()
 
@@ -30,6 +31,21 @@ def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol
     with open("config.ini", "w") as configfile:
         config.write(configfile)
 
+
+def get_public_ip():
+    try:
+        response = requests.get("https://api.ipify.org?format=json", timeout=5)
+        if response.status_code == 200:
+            ip = response.json().get("ip")
+            logging.info(f"🔍 Your Public IP: {ip}")
+            return ip
+    except Exception as e:
+        logging.error(f"Failed to get public IP: {e}")
+    return None
+
+# Call it before running the bot
+public_ip = get_public_ip()
+logging.info(f"Public IP for Streamlit Server: {public_ip}")
 # Initialize persistent session state variables if not already set
 if "bot_process" not in st.session_state:
     st.session_state.bot_process = None
