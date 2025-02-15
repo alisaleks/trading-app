@@ -7,16 +7,15 @@ import sys
 import threading
 import queue
 import time
-from streamlit_autorefresh import st_autorefresh
 
 # Load environment variables for local development
 load_dotenv()
 
 def get_api_credentials():
-    # Try to get from environment first (for local development)
+    # Try local environment variables first
     api_key = os.getenv("API_KEY")
     api_secret = os.getenv("API_SECRET")
-    # If not found, try Streamlit secrets (for cloud deployment)
+    # If not available, use Streamlit secrets (for cloud deployment)
     if not api_key or not api_secret:
         api_key = st.secrets.get("API", {}).get("api_key", "")
         api_secret = st.secrets.get("API", {}).get("api_secret", "")
@@ -48,7 +47,6 @@ if "log_queue" not in st.session_state:
 if "log_lines" not in st.session_state:
     st.session_state.log_lines = []
 
-# Streamlit UI
 st.title("Trading Bot Configuration")
 
 # UI Inputs
@@ -69,7 +67,7 @@ if st.button("Run Trading Bot"):
         st.session_state.bot_process.terminate()
         st.session_state.bot_process = None
     
-    # Start the trading bot process with stderr combined into stdout
+    # Start the trading bot process (combining stderr into stdout)
     st.session_state.bot_process = subprocess.Popen(
         [sys.executable, "new_trading_bot.py"],
         stdout=subprocess.PIPE,
@@ -79,7 +77,7 @@ if st.button("Run Trading Bot"):
         universal_newlines=True
     )
     
-    # Start a background thread to read logs from the process
+    # Background thread to read logs from the process
     def read_logs(process, log_queue):
         for line in iter(process.stdout.readline, ''):
             log_queue.put(line)
@@ -100,13 +98,14 @@ if st.button("Stop Trading Bot"):
 
 st.subheader("Trading Bot Live Logs")
 
-# Auto-refresh the page every 2 seconds so new logs are shown
-st_autorefresh(interval=2000, key="log_autorefresh")
-
 # Poll the log queue for new log lines
 while not st.session_state.log_queue.empty():
     new_line = st.session_state.log_queue.get()
     st.session_state.log_lines.append(new_line)
 
-# Display the accumulated logs
 st.text("".join(st.session_state.log_lines))
+
+# If a bot is running, wait 2 seconds then re-run the app to update logs
+if st.session_state.bot_process is not None:
+    time.sleep(2)
+    st.experimental_rerun()
