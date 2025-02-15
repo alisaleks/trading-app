@@ -28,7 +28,7 @@ def get_api_credentials():
 # ✅ Load general configuration from config.ini
 config = ConfigParser()
 config.read('config.ini')
-API_KEY, API_SECRET = get_api_credentials()
+api_key, api_secret = get_api_credentials()
 TEST_MODE = config.getboolean('Settings', 'test_mode')
 MANUAL_PERCENTAGE = float(config.get('Settings', 'manual_percentage')) / 100  # e.g., 0.02 for 2%
 INTERVAL = int(config.get('Settings', 'interval'))
