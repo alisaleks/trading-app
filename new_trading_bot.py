@@ -11,7 +11,7 @@ import streamlit as st  # ✅ Add this line for Streamlit integration
 
 # ✅ Unbuffered Output for Streamlit (Python 3.7+)
 sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
-PROXY_URL = "http://87.106.90.137:8080"
+PROXY_URL = "http://http://189.240.60.172:9090"
 # ✅ Initialize logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
