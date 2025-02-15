@@ -9,14 +9,18 @@ from configparser import ConfigParser
 from dotenv import load_dotenv
 import requests
 import logging
+
+# ✅ Proxy Configuration Fix
 PROXY_URL = "http://189.240.60.172:9090"
+PROXY_CONFIG = {"http": PROXY_URL, "https": PROXY_URL}
+
 # ✅ Load local environment variables (.env)
 load_dotenv()
 
-# ✅ Proxy Configuration (Provided Proxy)
-PROXY_CONFIG = {"http": PROXY_URL, "https": PROXY_URL}
+# ✅ Initialize logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# ✅ Get API Credentials from Secrets or .env
+# ✅ Get API Credentials from Streamlit Secrets or .env
 def get_api_credentials():
     api_key = st.secrets.get("api", {}).get("api_key", os.getenv("API_KEY", ""))
     api_secret = st.secrets.get("api", {}).get("api_secret", os.getenv("API_SECRET", ""))
@@ -41,22 +45,22 @@ def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol
         'api_secret': api_secret
     }
     config['Proxy'] = {
-        'proxy_url': PROXY_URL  # ✅ Use Correct Variable Name
+        'proxy_url': PROXY_URL  # ✅ Fixed Proxy Variable
     }
     with open("config.ini", "w") as configfile:
         config.write(configfile)
     st.success("✅ Configuration saved to `config.ini`.")
 
-# ✅ Get Public IP to diagnose region blocks
+# ✅ Get Public IP via Proxy
 def get_public_ip():
     try:
         response = requests.get(
-            "https://api64.ipify.org?format=json",
-            proxies={"http": PROXY_URL, "https": PROXY_URL},
-            timeout=5
+            "https://checkip.amazonaws.com",
+            proxies=PROXY_CONFIG,
+            timeout=15  # ✅ Increased Timeout
         )
         if response.status_code == 200:
-            ip = response.json().get("ip")
+            ip = response.text.strip()
             st.info(f"🔍 Your Public IP via Proxy: `{ip}`")
             return ip
     except Exception as e:
@@ -69,7 +73,7 @@ def check_bybit_connection():
         response = requests.get(
             "https://api-testnet.bybit.com/v5/market/tickers",
             params={"category": "linear", "symbol": "BTCUSDT"},
-            proxies={"http": PROXY_URL, "https": PROXY_URL},
+            proxies=PROXY_CONFIG,
             timeout=15  # ✅ Increased Timeout
         )
         status_code = response.status_code
@@ -86,6 +90,7 @@ def check_bybit_connection():
     except Exception as e:
         st.error(f"🚨 Bybit Testnet connection via proxy failed: {e}")
         return False
+
 # ✅ Show Public IP & Bybit Status Before Running Bot
 st.title("🚀 Trading Bot Dashboard")
 public_ip = get_public_ip()
@@ -99,7 +104,7 @@ if "log_queue" not in st.session_state:
 if "log_lines" not in st.session_state:
     st.session_state.log_lines = []
 
-# 📊 Streamlit Interface
+# 📊 Streamlit Sidebar Interface
 with st.sidebar:
     st.header("⚙️ Bot Configuration")
     test_mode = st.checkbox("Test Mode (Bybit Testnet)", value=True)
@@ -115,21 +120,23 @@ if st.button("💾 Save Configuration"):
 
 # ✅ Function to read logs from bot process and store in queue
 def read_logs(process, log_queue):
+    """Continuously read logs from the bot process."""
     for line in iter(process.stdout.readline, ''):
         log_queue.put(line)
     process.stdout.close()
 
 # ✅ Start Bot Process
 def start_bot():
+    """Start the trading bot subprocess."""
     save_config(test_mode, base_price, manual_percentage, interval, mode, symbol)
     st.success("🚀 Starting `new_trading_bot.py`...")
 
-    # Terminate any existing process
+    # Terminate existing process if active
     if st.session_state.bot_process is not None:
         st.session_state.bot_process.terminate()
         st.session_state.bot_process = None
 
-    # Start the bot as a subprocess
+    # Start the bot subprocess
     st.session_state.bot_process = subprocess.Popen(
         [sys.executable, "new_trading_bot.py"],
         stdout=subprocess.PIPE,
@@ -147,12 +154,13 @@ def start_bot():
 
 # ✅ Stop Bot Process
 def stop_bot():
+    """Stop the trading bot subprocess."""
     if st.session_state.bot_process:
         st.session_state.bot_process.terminate()
         st.session_state.bot_process = None
         st.success("🛑 Trading bot stopped.")
     else:
-        st.warning("⚠️ No active bot process to stop.")
+        st.warning("⚠️ No active trading bot to stop.")
 
 # --- 🚀 Start/Stop Buttons ---
 col1, col2 = st.columns(2)
@@ -176,4 +184,4 @@ st.text_area("Logs", "\n".join(st.session_state.log_lines[-30:]), height=300)
 
 # --- 🔄 Manual Refresh Logs ---
 if st.button("🔄 Refresh Logs"):
-    st.rerun()
+    st.experimental_rerun()  # ✅ Use experimental_rerun for Streamlit Cloud Compatibility
