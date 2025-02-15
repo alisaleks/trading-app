@@ -51,7 +51,8 @@ session = HTTP(
     request_timeout=10,
     proxies={"http": PROXY_URL, "https": PROXY_URL}
 )
-
+session._session = requests.Session()
+session._session.timeout = 10  # 10 seconds timeout
 def log_trade(action, qty, price, success=True, error=None):
     """Log structured trade details for Streamlit."""
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
