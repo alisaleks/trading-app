@@ -1,11 +1,13 @@
 import sys
 import time
+import os
 import math
 import logging
 import json
 import datetime
 from configparser import ConfigParser
 from pybit.unified_trading import HTTP
+import streamlit as st  # ✅ Add this line for Streamlit integration
 
 # ✅ Unbuffered Output for Streamlit (Python 3.7+)
 sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
@@ -13,12 +15,20 @@ sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
 # ✅ Initialize logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Load configuration
+# ✅ Load API Credentials (Priority: Environment → Streamlit Secrets)
+def get_api_credentials():
+    api_key = os.getenv("api_key") or st.secrets.get("API", {}).get("api_key", "")
+    api_secret = os.getenv("api_secret") or st.secrets.get("API", {}).get("api_secret", "")
+    
+    if not api_key or not api_secret:
+        raise ValueError("API credentials not found in environment variables or Streamlit secrets.")
+    
+    return api_key, api_secret
+
+# ✅ Load general configuration from config.ini
 config = ConfigParser()
 config.read('config.ini')
-
-API_KEY = config.get('API', 'api_key')
-API_SECRET = config.get('API', 'api_secret')
+API_KEY, API_SECRET = get_api_credentials()
 TEST_MODE = config.getboolean('Settings', 'test_mode')
 MANUAL_PERCENTAGE = float(config.get('Settings', 'manual_percentage')) / 100  # e.g., 0.02 for 2%
 INTERVAL = int(config.get('Settings', 'interval'))
