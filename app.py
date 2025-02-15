@@ -11,7 +11,7 @@ import requests
 import logging
 
 # ✅ Proxy Configuration
-PROXY_URL = "http://63.32.1.88:3128"  # Example: Germany Proxy
+PROXY_URL = "http://87.106.90.137:8080"  # Example: Germany Proxy
 PROXY_CONFIG = {"http": PROXY_URL, "https": PROXY_URL}
 
 # ✅ Load local environment variables (.env)
