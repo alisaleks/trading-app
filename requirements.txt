@@ -46,7 +46,7 @@ protobuf==5.29.3
 pyaes==1.6.1
 pyarrow==19.0.0
 pyasn1==0.6.1
-pybit==5.8.0
+pybit==5.9.0
 pycares==4.5.0
 pycparser==2.22
 pycryptodome==3.21.0
