@@ -33,7 +33,32 @@ session = HTTP(
     api_key=API_KEY,
     api_secret=API_SECRET
 )
+import logging
+import json
 
+# Configure logging for structured output
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+
+import datetime
+import logging
+import json
+
+def log_trade(action, qty, price, success=True, error=None):
+    """Log structured trade details in JSON format for Streamlit."""
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # ✅ Use datetime instead of Formatter
+    log_entry = {
+        "timestamp": timestamp,
+        "action": action,
+        "quantity": qty,
+        "price": price,
+        "status": "SUCCESS" if success else "FAILED",
+        "error": error
+    }
+    # Print structured log for Streamlit output
+    print(json.dumps(log_entry))
+    # Log detailed info using logging
+    logging.info(f"{action.capitalize()} Order: qty={qty}, price={price}, status={'SUCCESS' if success else 'FAILED'}")
+    
 def retry_api_call(func, retries=3, *args, **kwargs):
     for attempt in range(retries):
         try:
@@ -66,17 +91,16 @@ def adjust_qty(qty, step_size, precision):
 def execute_trade(action, total_trade_value, price):
     symbol_info = get_symbol_info(SYMBOL)
     if not symbol_info:
-        logging.error("Failed to retrieve symbol information.")
+        log_trade(action, 0, price, success=False, error="Failed to retrieve symbol info")
         return
 
     qty = total_trade_value / price
     qty = adjust_qty(qty, symbol_info['qty_step'], symbol_info['precision'])
 
     if qty < symbol_info['min_qty']:
-        logging.error(f"Quantity {qty} is below the minimum allowed {symbol_info['min_qty']}.")
+        log_trade(action, qty, price, success=False, error=f"Quantity below minimum: {symbol_info['min_qty']}")
         return
 
-    logging.info(f"Placing {action.capitalize()} Order: qty={qty}, price={price}")
     try:
         response = retry_api_call(
             session.place_order,
@@ -88,9 +112,14 @@ def execute_trade(action, total_trade_value, price):
             price=str(round(price, 1)),
             timeInForce="GTC"
         )
-        logging.info(f"Trade Response: {response}")
+        if response and response.get('retCode') == 0:
+            log_trade(action, qty, price, success=True)
+        else:
+            error_msg = response.get('retMsg', 'Unknown Error')
+            log_trade(action, qty, price, success=False, error=error_msg)
+
     except Exception as e:
-        logging.error(f"Failed to execute trade: {e}")
+        log_trade(action, qty, price, success=False, error=str(e))
 
 def get_current_price():
     ticker = retry_api_call(session.get_tickers, category="linear", symbol=SYMBOL)
@@ -103,7 +132,6 @@ def trading_logic():
     trade_amounts = [BASE_PRICE * multiplier for multiplier in STEP_INCREMENTS]
     step_index = 0
     last_trade_price = None
-    last_action = None
     total_holdings = 0  # Track total accumulated coins
 
     logging.info("Trading bot initialized. Monitoring price movements...")
@@ -111,52 +139,39 @@ def trading_logic():
     try:
         while True:
             current_price = get_current_price()
-            logging.info(f"Current Market Price: {current_price}")
+            log_trade("price_check", 0, current_price, success=True)
 
             if last_trade_price is None:
                 trade_amount = trade_amounts[step_index]
                 execute_trade('buy' if MODE == 'long' else 'sell', trade_amount, current_price)
                 last_trade_price = current_price
-                last_action = 'buy' if MODE == 'long' else 'sell'
-                total_holdings = trade_amount / current_price  # Track purchased qty
-            else:
-                if MODE == 'long' and current_price <= last_trade_price * (1 - MANUAL_PERCENTAGE):
+                total_holdings = trade_amount / current_price
+
+            elif MODE == 'long':
+                if current_price <= last_trade_price * (1 - MANUAL_PERCENTAGE):
                     step_index = min(step_index + 1, len(trade_amounts) - 1)
                     trade_amount = trade_amounts[step_index]
                     execute_trade('buy', trade_amount, current_price)
                     last_trade_price = current_price
-                    total_holdings += trade_amount / current_price  # Accumulate total coins
+                    total_holdings += trade_amount / current_price
 
-                elif MODE == 'long' and current_price >= last_trade_price * (1 + MANUAL_PERCENTAGE):
-                    execute_trade('sell', total_holdings * current_price, current_price)  # Sell all holdings
-                    total_holdings = 0  # Reset holdings
+                elif current_price >= last_trade_price * (1 + MANUAL_PERCENTAGE):
+                    execute_trade('sell', total_holdings * current_price, current_price)
+                    total_holdings = 0
+                    step_index = 0
 
-                    # **Buy immediately after selling at the same price with new step amount**
-                    trade_amount = trade_amounts[step_index]  # Use the current step's amount
-                    execute_trade('buy', trade_amount, current_price)
-                    last_trade_price = current_price
-                    total_holdings = trade_amount / current_price  # Reset holdings
-
-                    step_index = 0  # Reset to first step
-
-                elif MODE == 'short' and current_price >= last_trade_price * (1 + MANUAL_PERCENTAGE):
+            elif MODE == 'short':
+                if current_price >= last_trade_price * (1 + MANUAL_PERCENTAGE):
                     step_index = min(step_index + 1, len(trade_amounts) - 1)
                     trade_amount = trade_amounts[step_index]
                     execute_trade('sell', trade_amount, current_price)
                     last_trade_price = current_price
-                    total_holdings += trade_amount / current_price  # Accumulate total coins
+                    total_holdings += trade_amount / current_price
 
-                elif MODE == 'short' and current_price <= last_trade_price * (1 - MANUAL_PERCENTAGE):
-                    execute_trade('buy', total_holdings * current_price, current_price)  # Buy all back
-                    total_holdings = 0  # Reset holdings
-
-                    # **Buy immediately after covering at the same price with new step amount**
-                    trade_amount = trade_amounts[step_index]  # Use the current step's amount
-                    execute_trade('sell', trade_amount, current_price)
-                    last_trade_price = current_price
-                    total_holdings = trade_amount / current_price  # Reset holdings
-
-                    step_index = 0  # Reset to first step
+                elif current_price <= last_trade_price * (1 - MANUAL_PERCENTAGE):
+                    execute_trade('buy', total_holdings * current_price, current_price)
+                    total_holdings = 0
+                    step_index = 0
 
             time.sleep(INTERVAL)
 
