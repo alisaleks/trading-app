@@ -6,6 +6,8 @@ import streamlit as st
 from configparser import ConfigParser
 from dotenv import load_dotenv
 import os
+import subprocess
+
 
 # Load environment variables
 load_dotenv()
@@ -29,8 +31,8 @@ def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol
     with open("config.ini", "w") as configfile:
         config.write(configfile)
 
-# Streamlit UI for local testing
-st.title("Trading Bot Configuration (Localhost)")
+# Streamlit UI
+st.title("Trading Bot Configuration")
 
 test_mode = st.checkbox("Test Mode")
 base_price = st.number_input("Base Price", value=1500.0)
@@ -39,7 +41,10 @@ interval = st.number_input("Interval (seconds)", min_value=1, value=60)
 mode = st.selectbox("Mode", ["long", "short"])
 symbol = st.text_input("Symbol", value="BTCUSDT")
 
-if st.button("Run Bot Locally"):
+if st.button("Run Trading Bot"):
     save_config(test_mode, base_price, manual_percentage, interval, mode, symbol)
-    st.success("Configuration saved. Run the bot locally using `python trading_bot.py`.")
-    st.write("Use `streamlit run app.py` to test the Streamlit app on localhost.")
+    st.success("Configuration saved. Running `new_trading_bot.py`...")
+    result = subprocess.run(["python", "new_trading_bot.py"], capture_output=True, text=True)
+    st.text_area("Trading Bot Output", result.stdout)
+    if result.stderr:
+        st.error(f"Error: {result.stderr}")
