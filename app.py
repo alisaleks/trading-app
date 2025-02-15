@@ -12,12 +12,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def get_api_credentials():
-    # First try local env vars; if not found, use Streamlit secrets (set via dashboard)
-    api_key = os.getenv("API_KEY")
-    api_secret = os.getenv("API_SECRET")
-    if not api_key or not api_secret:
-        api_key = st.secrets.get("API", {}).get("api_key", "")
-        api_secret = st.secrets.get("API", {}).get("api_secret", "")
+    api_key = st.secrets.get("api", {}).get("api_key", "")
+    api_secret = st.secrets.get("api", {}).get("api_secret", "")
     return api_key, api_secret
 
 def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol):
