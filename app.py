@@ -4,14 +4,19 @@
 
 import streamlit as st
 from configparser import ConfigParser
+from dotenv import load_dotenv
 import os
 
-# Function to save configuration to config.ini
+# Load environment variables
+load_dotenv()
+API_KEY = os.getenv('API_KEY')
+API_SECRET = os.getenv('API_SECRET')
+
 def save_config(test_mode, base_price, manual_percentage, interval, mode, symbol):
     config = ConfigParser()
     config['API'] = {
-        'api_key': str(API_KEY),
-        'api_secret': str(API_SECRET)
+        'api_key': '[Stored securely in .env]',
+        'api_secret': '[Stored securely in .env]'
     }
     config['Settings'] = {
         'test_mode': str(test_mode),
