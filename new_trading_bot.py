@@ -1,10 +1,16 @@
+import sys
 import time
 import math
 import logging
+import json
+import datetime
 from configparser import ConfigParser
 from pybit.unified_trading import HTTP
 
-# Initialize logging
+# ✅ Unbuffered Output for Streamlit (Python 3.7+)
+sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
+
+# ✅ Initialize logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Load configuration
@@ -33,19 +39,10 @@ session = HTTP(
     api_key=API_KEY,
     api_secret=API_SECRET
 )
-import logging
-import json
-
-# Configure logging for structured output
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
-
-import datetime
-import logging
-import json
 
 def log_trade(action, qty, price, success=True, error=None):
-    """Log structured trade details in JSON format for Streamlit."""
-    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # ✅ Use datetime instead of Formatter
+    """Log structured trade details for Streamlit."""
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_entry = {
         "timestamp": timestamp,
         "action": action,
@@ -54,11 +51,10 @@ def log_trade(action, qty, price, success=True, error=None):
         "status": "SUCCESS" if success else "FAILED",
         "error": error
     }
-    # Print structured log for Streamlit output
-    print(json.dumps(log_entry))
-    # Log detailed info using logging
+    # Print JSON log for Streamlit
+    print(json.dumps(log_entry), flush=True)
     logging.info(f"{action.capitalize()} Order: qty={qty}, price={price}, status={'SUCCESS' if success else 'FAILED'}")
-    
+
 def retry_api_call(func, retries=3, *args, **kwargs):
     for attempt in range(retries):
         try:
