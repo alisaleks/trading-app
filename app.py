@@ -9,7 +9,7 @@ from configparser import ConfigParser
 from dotenv import load_dotenv
 import requests
 import logging
-
+PROXY_URL = "http://27.70.238.241:10007"
 # ✅ Load local environment variables (.env)
 load_dotenv()
 
