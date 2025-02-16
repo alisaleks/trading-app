@@ -60,7 +60,7 @@ session._session.proxies.update({
     "http": PROXY_URL,
     "https": PROXY_URL
 })
-session._session.timeout = 10  # Set timeout to 10 seconds
+session._session.timeout = 40  # Set timeout to 10 seconds
 
 def log_trade(action, qty, price, success=True, error=None):
     """Log structured trade details for Streamlit."""
