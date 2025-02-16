@@ -15,7 +15,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ✅ Proxy Configuration
-PROXY_URL = "http://188.34.156.126:24572"  # Example: Germany Proxy
+PROXY_URL = "http://15.236.203.245:3128"  # Example: Germany Proxy
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
