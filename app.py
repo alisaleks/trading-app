@@ -57,7 +57,7 @@ def get_public_ip():
         response = requests.get(
             "https://checkip.amazonaws.com",
             proxies=PROXY_CONFIG,
-            timeout=15
+            timeout=40
         )
         if response.status_code == 200:
             ip = response.text.strip()
@@ -74,7 +74,7 @@ def check_bybit_connection():
             "https://api-testnet.bybit.com/v5/market/tickers",
             params={"category": "linear", "symbol": "BTCUSDT"},
             proxies=PROXY_CONFIG,
-            timeout=15
+            timeout=40
         )
         status_code = response.status_code
         if status_code == 200:
